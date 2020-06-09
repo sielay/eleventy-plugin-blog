@@ -24,6 +24,10 @@
     "url": "https://github.com/sielay/eleventy-plugin-blog/issues"
   },
   "homepage": "https://github.com/sielay/eleventy-plugin-blog#readme",
+  "devDependencies": {
+    "cli": "^1.0.1",
+    "mkdirp": "^1.0.4"
+  },
   "dependencies": {
     "chalk": "^4.0.0",
     "lodash": "^4.17.15",

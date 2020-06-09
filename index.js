@@ -1,8 +1,12 @@
 const lodash = require("lodash");
 const moment = require("moment");
 const slugify = require("slugify");
-const { blue, yellow, red, green } = require("chalk");
+const { blue, yellow, green } = require("chalk");
 
+/**
+ * Templates supported by 11ty
+ * @todo maybe import them from eleventy itself?
+ */
 const ELEVENTY_TEMPLATES = [
   "html",
   "md",
@@ -17,21 +21,30 @@ const ELEVENTY_TEMPLATES = [
   "jstl",
 ];
 
-let ITEMS_PER_PAGE = 10;
-let CONTENT = ".";
-let BLOG = ELEVENTY_TEMPLATES.map((extension) => `${CONTENT}/*.${extension}`);
+const DEFAULT_ITEMS_PER_PAGE = 10;
+const DEFAULT_CONTENT = ".";
+const DEFAULT_BLOG = ELEVENTY_TEMPLATES.map(
+  (extension) => `${DEFAULT_CONTENT}/*.${extension}`
+);
 
 const log = (...args) => console.log(...args);
 
+/**
+ * Frontmatter can return date like values as Date objects. For our use we need original string input
+ * @param {Mixed} value expted to be string or Date
+ */
 const dateOrString = (value) => {
   return value instanceof Date || typeof value.toISOString === "function"
     ? value.toISOString().substr(0, 10)
     : String(value);
 };
 
+/**
+ * Some collections returned by frontmatter won't be arrays so will fail Array.isArray
+ * @param {Mixed} obj
+ */
 const isIterable = (obj) => {
-  // checks for null and undefined
-  if (obj == null) {
+  if (obj === null || obj === undefined) {
     return false;
   }
   return typeof obj[Symbol.iterator] === "function";
@@ -40,16 +53,14 @@ const isIterable = (obj) => {
 /**
  * Transform a string into a slug
  * Uses slugify package
- *
- * @param {String} str - string to slugify
+ * @param {String} str string to slugify
  */
-function strToSlug(str) {
-  return slugify(str, {
+const strToSlug = (str) =>
+  slugify(str, {
     replacement: "-",
     remove: /[&,+()$~%.'":*?<>{}]/g,
     lower: true,
   });
-}
 
 /**
  * Get all unique key values from a collection
@@ -61,22 +72,19 @@ function getAllKeyValues(collectionArray, key) {
   log(blue("Collecting distinct frontmatter values for"), yellow(key));
   // get all values from collection
   const hash = collectionArray.reduce((previous, page) => {
-    let valueList, values;
-    if (typeof key === "function") {
-      valueList = key(page);
-    } else {
-      valueList = page.data[key];
-    }
+    const valueList = typeof key === "function" ? key(page) : page.data[key];
+    let values;
+
     if (typeof valueList === "string") {
       values = [valueList];
     } else if (isIterable(valueList)) {
       values = [...valueList];
     } else {
-      return previous;
+      return previous; // ignore entry
     }
+
     values.forEach((value) => {
       const slug = strToSlug(value.toLowerCase());
-
       previous[slug] = previous[slug] || {
         slug,
         title: value,
@@ -88,16 +96,17 @@ function getAllKeyValues(collectionArray, key) {
     });
     return previous;
   }, {});
-  console.log(hash);
+
   const values = Object.values(hash);
+
   log(blue("Distinct values found"), green(values.length));
-  return values.sort(function (a, b) {
-    return a.slug.localeCompare(b.slug, "en", { sensitivity: "base" });
-  });
+  return values.sort(({ slug: a }, { slug: b }) =>
+    a.localeCompare(b, "en", { sensitivity: "base" })
+  );
 }
 
 function paginate({ pages, slug, prefix, title, count, meta = {} }) {
-  const chunkedPages = lodash.chunk(pages, ITEMS_PER_PAGE);
+  const chunkedPages = lodash.chunk(pages, DEFAULT_ITEMS_PER_PAGE);
   const paged = [];
   const pagesSlugs = [];
 
@@ -142,7 +151,7 @@ function generateTaxonomy(eleventyConfig, field, taxonomy) {
   log(blue("Generatin taxonomy"), yellow(taxonomy));
   eleventyConfig.addCollection(taxonomy, function (collection) {
     const paginated = paginateTaxonomy(
-      getAllKeyValues(collection.getFilteredByGlob(BLOG), field),
+      getAllKeyValues(collection.getFilteredByGlob(DEFAULT_BLOG), field),
       `blog/${taxonomy}`
     );
     return paginated;
@@ -157,7 +166,7 @@ function generatePaginatedBlog(eleventyConfig) {
       prefix: "blog",
       count: collection.length,
       pages: collection
-        .getFilteredByGlob(BLOG)
+        .getFilteredByGlob(DEFAULT_BLOG)
         .reverse()
         .map((post, index, array) => {
           // post.data.layout = "../_includes/blogpost.njk";
@@ -174,7 +183,7 @@ function generatePaginatedBlog(eleventyConfig) {
 function generateCalendar(eleventyConfig) {
   eleventyConfig.addCollection("calendar", function (collection) {
     const calendar = getAllKeyValues(
-      collection.getFilteredByGlob(BLOG),
+      collection.getFilteredByGlob(DEFAULT_BLOG),
       (page) => {
         const {
           data: { created },

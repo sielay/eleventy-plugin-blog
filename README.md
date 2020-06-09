@@ -17,6 +17,17 @@ yarn add eleventy-plugin-blog
 
 ## Usage
 
+### Runnoing examples
+
+Go to the folder with given example and run:
+
+```bash
+../../generate-examples.js -o . -n 500
+npx @11ty/eleventy
+```
+
+All massive output will be created balazzingly fast to show you how it works.
+
 ### Basic
 
 To start using you just need to add the plugin into your `.eleventy.js` file.
