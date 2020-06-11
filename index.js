@@ -23,9 +23,6 @@ const ELEVENTY_TEMPLATES = [
 
 const DEFAULT_ITEMS_PER_PAGE = 10;
 const DEFAULT_CONTENT = ".";
-const DEFAULT_BLOG = ELEVENTY_TEMPLATES.map(
-  (extension) => `${DEFAULT_CONTENT}/*.${extension}`
-);
 
 const log = (...args) => console.log(...args);
 
@@ -88,11 +85,9 @@ function getAllKeyValues(collectionArray, key) {
       previous[slug] = previous[slug] || {
         slug,
         title: value,
-        count: 0,
         pages: [],
       };
       previous[slug].pages.push(page);
-      previous[slug].count++;
     });
     return previous;
   }, {});
@@ -105,8 +100,11 @@ function getAllKeyValues(collectionArray, key) {
   );
 }
 
-function paginate({ pages, slug, prefix, title, count, meta = {} }) {
-  const chunkedPages = lodash.chunk(pages, DEFAULT_ITEMS_PER_PAGE);
+function paginate({ pages, slug, prefix, title, meta = {}, itemsPerPage }) {
+  const chunkedPages = lodash.chunk(
+    pages,
+    itemsPerPage || DEFAULT_ITEMS_PER_PAGE
+  );
   const paged = [];
   const pagesSlugs = [];
 
@@ -121,8 +119,8 @@ function paginate({ pages, slug, prefix, title, count, meta = {} }) {
       title,
       slug: pagesSlugs[index],
       pagenumber: index,
-      count,
-      url: `${prefix}/${slug}`,
+      count: pages.length,
+      url: `${prefix}/${pagesSlugs[index]}`,
       total: pagesSlugs.length,
       slugs: {
         all: pagesSlugs,
@@ -138,38 +136,49 @@ function paginate({ pages, slug, prefix, title, count, meta = {} }) {
   return paged;
 }
 
-function paginateTaxonomy(list, prefix) {
+function paginateTaxonomy(list, prefix, itemsPerPage) {
   const paged = [];
-  list.forEach(({ slug, count, title, pages, meta }) =>
-    paged.push(...paginate({ pages, title, count, slug, prefix, meta }))
+  list.forEach(({ slug, title, pages, meta }) =>
+    paged.push(...paginate({ pages, title, slug, prefix, meta, itemsPerPage }))
   );
   log(blue("Pages created for taxonomy"), yellow(paged.length));
   return paged;
 }
 
-function generateTaxonomy(eleventyConfig, field, taxonomy) {
+function generateTaxonomy(
+  eleventyConfig,
+  field,
+  taxonomy,
+  { blog, itemsPerPage } = {}
+) {
   log(blue("Generatin taxonomy"), yellow(taxonomy));
   eleventyConfig.addCollection(taxonomy, function (collection) {
     const paginated = paginateTaxonomy(
-      getAllKeyValues(collection.getFilteredByGlob(DEFAULT_BLOG), field),
-      `blog/${taxonomy}`
+      getAllKeyValues(collection.getFilteredByGlob(blog), field),
+      `blog/${taxonomy}`,
+      itemsPerPage
     );
     return paginated;
   });
 }
 
-function generatePaginatedBlog(eleventyConfig) {
+function generatePaginatedBlog(
+  eleventyConfig,
+  { blogPostTemplate, blog, itemsPerPage } = {}
+) {
   eleventyConfig.addCollection("blog", (collection) =>
     paginate({
+      itemsPerPage,
       title: "Blog",
       slug: "blog",
       prefix: "blog",
-      count: collection.length,
       pages: collection
-        .getFilteredByGlob(DEFAULT_BLOG)
+        .getFilteredByGlob(blog)
         .reverse()
         .map((post, index, array) => {
-          // post.data.layout = "../_includes/blogpost.njk";
+          if (blogPostTemplate) {
+            post.data.layout = blogPostTemplate;
+          }
           post.data.siblings = {
             previous: array[index - 1],
             next: array[index + 1],
@@ -180,10 +189,10 @@ function generatePaginatedBlog(eleventyConfig) {
   );
 }
 
-function generateCalendar(eleventyConfig) {
+function generateCalendar(eleventyConfig, { blog, itemsPerPage } = {}) {
   eleventyConfig.addCollection("calendar", function (collection) {
     const calendar = getAllKeyValues(
-      collection.getFilteredByGlob(DEFAULT_BLOG),
+      collection.getFilteredByGlob(blog),
       (page) => {
         const {
           data: { created },
@@ -193,7 +202,7 @@ function generateCalendar(eleventyConfig) {
         }
         return dateOrString(page.date);
       }
-    ).reduce((previous, { slug, pages, count }) => {
+    ).reduce((previous, { slug, pages }) => {
       try {
         const [_, year, month] = slug.match(/^(\d+)-(\d+)-(\d+)/);
         const yearSlot = (previous[year] = previous[year] || {
@@ -204,14 +213,12 @@ function generateCalendar(eleventyConfig) {
           slug: year,
           title: year,
           pages: [],
-          count: 0,
         });
         yearSlot.pages.push(...pages);
-        yearSlot.count += count;
 
         const monthId = `${year}-${month}`;
 
-        const monthSlot = (previous[monthId] = previous[monthId] || {
+        previous[monthId] = previous[monthId] || {
           meta: {
             year,
             type: "month",
@@ -222,10 +229,7 @@ function generateCalendar(eleventyConfig) {
           title: moment(slug).format("MMMM YYYY"),
           pages: [],
           months: {},
-          count: 0,
-        });
-        monthSlot.pages.push(...pages);
-        monthSlot.count += count;
+        };
       } catch (error) {
         console.log(error);
         console.log("SLUG", slug);
@@ -233,20 +237,65 @@ function generateCalendar(eleventyConfig) {
       return previous;
     }, {});
 
-    return paginateTaxonomy(Object.values(calendar), `blog`);
+    return paginateTaxonomy(Object.values(calendar), `blog`, itemsPerPage);
   });
 }
+
+function generateBooleanCollection(
+  eleventyConfig,
+  collectionName,
+  field,
+  OPTIONS
+) {
+  const { blog } = OPTIONS;
+  eleventyConfig.addCollection(collectionName, (collection) =>
+    collection
+      .getFilteredByGlob(blog)
+      .filter(({ data: { [field]: value } }) => value)
+  );
+}
+
+const top = (data, limit) =>
+  data[0] && data[0].items && data[0].items.slice(0, limit);
+
+const dateformat = (date, format) => moment(date).format(format);
+
+const first = (data) => data.filter(({ pagenumber }) => pagenumber === 0);
 
 module.exports = {
   generatePaginatedBlog,
   generateTaxonomy,
   generateCalendar,
+  generateBooleanCollection,
+  paginate,
   strToSlug,
+  top,
+  dateformat,
   initArguments: {},
-  configFunction: function (eleventyConfig) {
-    generatePaginatedBlog(eleventyConfig);
-    generateTaxonomy(eleventyConfig, "tags", "tag", "tags");
-    generateTaxonomy(eleventyConfig, "categories", "category", "categories");
-    generateCalendar(eleventyConfig);
+  configFunction: function (
+    eleventyConfig,
+    { input, itemsPerPage, extensions, blogPaths, blogPostTemplate } = {}
+  ) {
+    const OPTIONS = {
+      content: input || DEFAULT_CONTENT,
+      extensions: extensions || ELEVENTY_TEMPLATES,
+      itemsPerPage: itemsPerPage || DEFAULT_ITEMS_PER_PAGE,
+      blogPostTemplate,
+    };
+
+    OPTIONS.blog =
+      blogPaths ||
+      OPTIONS.extensions.map(
+        (extension) => `${OPTIONS.content}/*.${extension}`
+      );
+
+    generatePaginatedBlog(eleventyConfig, OPTIONS);
+    generateTaxonomy(eleventyConfig, "tags", "tag", OPTIONS);
+    generateTaxonomy(eleventyConfig, "categories", "category", OPTIONS);
+    generateCalendar(eleventyConfig, OPTIONS);
+    eleventyConfig.addFilter("blog_top", top);
+    eleventyConfig.addFilter("blog_slug", strToSlug);
+    eleventyConfig.addFilter("blog_dateformat", dateformat);
+    eleventyConfig.addFilter("blog_first", first);
   },
 };
