@@ -290,10 +290,10 @@ module.exports = {
       );
 
     eleventyConfig.addCollection("blog_flat", (collection) =>
-      collection.getFilteredByGlob(blog).reverse()
+      collection.getFilteredByGlob(OPTIONS.blog).reverse()
     );
     eleventyConfig.addCollection("all", (collection) =>
-      collection.getFilteredByGlob(content).reverse()
+      collection.getFilteredByGlob(OPTIONS.content).reverse()
     );
     generateBooleanCollection(eleventyConfig, "pages", "page", OPTIONS);
     generatePaginatedBlog(eleventyConfig, OPTIONS);

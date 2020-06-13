@@ -1,6 +1,6 @@
 {
   "name": "eleventy-plugin-blog",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "description": "Zero configuration blog featyres for 11ty",
   "main": "index.js",
   "scripts": {

@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.3
+
+ * Fix broken path
+
 ## 0.1.2
 
  * Added collection `blog_flat` for RSS feeds
