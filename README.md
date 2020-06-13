@@ -41,6 +41,9 @@ module.exports = function (eleventyConfig) {
 This will produce following collections:
 
  - `blog` all posts, paginated
+ - `blog_flat` all posts, flat
+ - `all` all pages
+ - `pages` all pages with frontmatter `page: true`
  - `tags` posts grouped by tags, paginated
  - `categories` posts grouped by categories, paginated
  - `calendar` posts grouped by year or year and month, paginated

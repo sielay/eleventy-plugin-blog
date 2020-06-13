@@ -1,6 +1,12 @@
 # Changelog
 
-## 0.1.0
+## 0.1.2
+
+ * Added collection `blog_flat` for RSS feeds
+ * Added collection `all`
+ * Added collection `pages`
+
+## 0.1.1
 
  * Added `generateBooleanCollection`
  * Added filter `blog_top`

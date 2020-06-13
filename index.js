@@ -289,6 +289,13 @@ module.exports = {
         (extension) => `${OPTIONS.content}/*.${extension}`
       );
 
+    eleventyConfig.addCollection("blog_flat", (collection) =>
+      collection.getFilteredByGlob(blog).reverse()
+    );
+    eleventyConfig.addCollection("all", (collection) =>
+      collection.getFilteredByGlob(content).reverse()
+    );
+    generateBooleanCollection(eleventyConfig, "pages", "page", OPTIONS);
     generatePaginatedBlog(eleventyConfig, OPTIONS);
     generateTaxonomy(eleventyConfig, "tags", "tag", OPTIONS);
     generateTaxonomy(eleventyConfig, "categories", "category", OPTIONS);
