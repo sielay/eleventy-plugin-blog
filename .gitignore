@@ -104,3 +104,4 @@ dist
 .tern-port
 _site
 examples/**/*.md
+drafts

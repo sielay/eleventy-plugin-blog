@@ -1,0 +1,21 @@
+---
+pagination:
+  data: collections.tag_list 
+  size: 1
+  alias: taglist
+permalink: /blog/{{ taglist.slug }}/index.html
+---
+
+<h2 class="text-4xl">Tags</h2>
+<ul>
+{% for url in collections | collections_flat | safejson_each("url") %}
+    <li>{{ url}}</li>
+{% endfor %}
+</ul>
+<ul>
+{%- for tag in taglist.items -%}
+  <li>
+    {{ tag.title }}
+  </li>
+{%- endfor -%}
+</ul>

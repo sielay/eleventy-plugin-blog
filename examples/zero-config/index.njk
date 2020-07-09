@@ -1,0 +1,13 @@
+<h2>Collections</h2>
+<ul>
+    {% for collection in collections | keys %}
+        <li>
+            {{ collection }}
+            <ul>
+                {% for item in collections | field(collection) %}
+                    <li><a href="{{ item.url }}">{{ item.url }}</a></li>
+                {% endfor %}
+            </ul>
+        </li>
+    {% endfor %}
+</ul>

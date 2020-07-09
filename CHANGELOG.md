@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.2.0
+
+ * BREAKING CHANGE convention of placing blog posts in `/blog/`
+ * BREAKING CHAGNE change field for pages to `staticPage` to avoid clashes
+ * BREAKING CHANGE go back to use native `all` collection
+
 ## 0.1.3
 
  * Fix broken path

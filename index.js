@@ -26,6 +26,8 @@ const DEFAULT_CONTENT = ".";
 
 const log = (...args) => console.log(...args);
 
+const exceptDraft = (post) => !post.data.draft;
+
 /**
  * Frontmatter can return date like values as Date objects. For our use we need original string input
  * @param {Mixed} value expted to be string or Date
@@ -65,7 +67,7 @@ const strToSlug = (str) =>
  * @param {Array} collectionArray - collection to loop through
  * @param {String|Function} key - key to get values from
  */
-function getAllKeyValues(collectionArray, key) {
+function getAllKeyValues(collectionArray, key, defaultValue) {
   log(blue("Collecting distinct frontmatter values for"), yellow(key));
   // get all values from collection
   const hash = collectionArray.reduce((previous, page) => {
@@ -76,6 +78,8 @@ function getAllKeyValues(collectionArray, key) {
       values = [valueList];
     } else if (isIterable(valueList)) {
       values = [...valueList];
+    } else if (defaultValue !== undefined) {
+      values = [defaultValue];
     } else {
       return previous; // ignore entry
     }
@@ -100,7 +104,15 @@ function getAllKeyValues(collectionArray, key) {
   );
 }
 
-function paginate({ pages, slug, prefix, title, meta = {}, itemsPerPage }) {
+function paginate({
+  pages,
+  slug,
+  prefix,
+  title,
+  meta = {},
+  itemsPerPage,
+  children,
+}) {
   const chunkedPages = lodash.chunk(
     pages,
     itemsPerPage || DEFAULT_ITEMS_PER_PAGE
@@ -109,8 +121,8 @@ function paginate({ pages, slug, prefix, title, meta = {}, itemsPerPage }) {
   const pagesSlugs = [];
 
   for (let i = 0; i < chunkedPages.length; i++) {
-    const suffix = i > 0 ? `/page-${i + 1}` : "";
-    const pageSlug = `${slug}${suffix}`;
+    const suffix = i > 0 ? `/page-${i + 1}` : "/";
+    const pageSlug = `${prefix}/${slug}${suffix}`;
     pagesSlugs.push(pageSlug);
   }
 
@@ -120,7 +132,7 @@ function paginate({ pages, slug, prefix, title, meta = {}, itemsPerPage }) {
       slug: pagesSlugs[index],
       pagenumber: index,
       count: pages.length,
-      url: `${prefix}/${pagesSlugs[index]}`,
+      url: pagesSlugs[index],
       total: pagesSlugs.length,
       slugs: {
         all: pagesSlugs,
@@ -129,6 +141,7 @@ function paginate({ pages, slug, prefix, title, meta = {}, itemsPerPage }) {
         first: pagesSlugs[0] || null,
         last: pagesSlugs[pagesSlugs.length - 1] || null,
       },
+      children: index === 0 ? children : [],
       items,
       ...meta,
     })
@@ -138,47 +151,83 @@ function paginate({ pages, slug, prefix, title, meta = {}, itemsPerPage }) {
 
 function paginateTaxonomy(list, prefix, itemsPerPage) {
   const paged = [];
-  list.forEach(({ slug, title, pages, meta }) =>
-    paged.push(...paginate({ pages, title, slug, prefix, meta, itemsPerPage }))
+  list.forEach(({ slug, title, pages, children, meta }) =>
+    paged.push(
+      ...paginate({
+        pages,
+        title,
+        slug,
+        prefix,
+        itemsPerPage,
+        children,
+        meta
+      })
+    )
   );
   log(blue("Pages created for taxonomy"), yellow(paged.length));
   return paged;
 }
 
-function generateTaxonomy(
-  eleventyConfig,
-  field,
-  taxonomy,
-  { blog, itemsPerPage } = {}
-) {
+function testGlobs(globs) {
+  if (!Array.isArray(globs) || globs.length === 0) {
+    throw new Error(`Invalid globs: ${globs} {type ${typeof globs}}`);
+  }
+}
+
+function generateTaxonomy(eleventyConfig, field, taxonomy, OPTIONS) {
+  const { blog, itemsPerPage, defaultValue } =
+    OPTIONS || module.exports.OPTIONS;
+  testGlobs(blog);
   log(blue("Generatin taxonomy"), yellow(taxonomy));
   eleventyConfig.addCollection(taxonomy, function (collection) {
     const paginated = paginateTaxonomy(
-      getAllKeyValues(collection.getFilteredByGlob(blog), field),
-      `blog/${taxonomy}`,
+      getAllKeyValues(
+        collection.getFilteredByGlob(blog).reverse().filter(exceptDraft),
+        field,
+        defaultValue
+      ),
+      `/blog/${taxonomy}`,
       itemsPerPage
     );
     return paginated;
   });
+  eleventyConfig.addCollection(`${taxonomy}_list`, function (collection) {
+    const paginated = paginate({
+      pages: getAllKeyValues(
+        collection.getFilteredByGlob(blog).reverse().filter(exceptDraft),
+        field
+      ),
+      title: taxonomy,
+      slug: taxonomy,
+      prefix: "/blog",
+      itemsPerPage,
+    });
+    return paginated;
+  });
 }
 
-function generatePaginatedBlog(
-  eleventyConfig,
-  { blogPostTemplate, blog, itemsPerPage } = {}
-) {
+function generatePaginatedBlog(eleventyConfig, OPTIONS) {
+  const { blog, itemsPerPage, blogPostTemplate } =
+    OPTIONS || module.exports.OPTIONS;
+  testGlobs(blog);
   eleventyConfig.addCollection("blog", (collection) =>
     paginate({
       itemsPerPage,
       title: "Blog",
       slug: "blog",
-      prefix: "blog",
+      prefix: "",
       pages: collection
         .getFilteredByGlob(blog)
         .reverse()
+        .filter(exceptDraft)
         .map((post, index, array) => {
           if (blogPostTemplate) {
             post.data.layout = blogPostTemplate;
           }
+          post.data.categories = post.data.categories || [OPTIONS.defaultCategory || 'blog'];
+          post.data.blog = {
+            parent: getDateFromPage(post).replace("-", "/").substr(0, 7),
+          };
           post.data.siblings = {
             previous: array[index - 1],
             next: array[index + 1],
@@ -189,19 +238,23 @@ function generatePaginatedBlog(
   );
 }
 
-function generateCalendar(eleventyConfig, { blog, itemsPerPage } = {}) {
+function getDateFromPage(page) {
+  const {
+    data: { created },
+  } = page;
+  if (created) {
+    return dateOrString(created);
+  }
+  return dateOrString(page.date);
+}
+
+function generateCalendar(eleventyConfig, OPTIONS) {
+  const { blog, itemsPerPage } = OPTIONS || module.exports.OPTIONS;
+  testGlobs(blog);
   eleventyConfig.addCollection("calendar", function (collection) {
     const calendar = getAllKeyValues(
-      collection.getFilteredByGlob(blog),
-      (page) => {
-        const {
-          data: { created },
-        } = page;
-        if (created) {
-          return dateOrString(created);
-        }
-        return dateOrString(page.date);
-      }
+      collection.getFilteredByGlob(blog).reverse().filter(exceptDraft),
+      getDateFromPage
     ).reduce((previous, { slug, pages }) => {
       try {
         const [_, year, month] = slug.match(/^(\d+)-(\d+)-(\d+)/);
@@ -218,7 +271,7 @@ function generateCalendar(eleventyConfig, { blog, itemsPerPage } = {}) {
 
         const monthId = `${year}-${month}`;
 
-        previous[monthId] = previous[monthId] || {
+        const monthSlot = (previous[monthId] = previous[monthId] || {
           meta: {
             year,
             type: "month",
@@ -229,7 +282,9 @@ function generateCalendar(eleventyConfig, { blog, itemsPerPage } = {}) {
           title: moment(slug).format("MMMM YYYY"),
           pages: [],
           months: {},
-        };
+        });
+        monthSlot.pages.push(...pages);
+        monthSlot.children = monthSlot.pages;
       } catch (error) {
         console.log(error);
         console.log("SLUG", slug);
@@ -237,7 +292,7 @@ function generateCalendar(eleventyConfig, { blog, itemsPerPage } = {}) {
       return previous;
     }, {});
 
-    return paginateTaxonomy(Object.values(calendar), `blog`, itemsPerPage);
+    return paginateTaxonomy(Object.values(calendar), `/blog`, itemsPerPage);
   });
 }
 
@@ -247,20 +302,79 @@ function generateBooleanCollection(
   field,
   OPTIONS
 ) {
-  const { blog } = OPTIONS;
+  const { all } = OPTIONS || module.exports.OPTIONS;
+  testGlobs(all);
   eleventyConfig.addCollection(collectionName, (collection) =>
     collection
-      .getFilteredByGlob(blog)
+      .getFilteredByGlob(all)
+      .reverse()
+      .filter(exceptDraft)
       .filter(({ data: { [field]: value } }) => value)
   );
 }
 
 const top = (data, limit) =>
-  data[0] && data[0].items && data[0].items.slice(0, limit);
+  data && data.items && data.items.slice(0, limit);
 
 const dateformat = (date, format) => moment(date).format(format);
 
-const first = (data) => data.filter(({ pagenumber }) => pagenumber === 0);
+const first = (data) => data.filter(({ pagenumber }) => +pagenumber === 0);
+
+const byField = (field) => ({ [field]: A }, { [field]: B }) => {
+  if (A === B) return 0;
+  return A < B ? -1 : 1;
+};
+
+const byUrl = byField("url");
+
+const uniqueURL = (data) => {
+  try {
+    const urls = [];
+    return data
+      .reduce((previous, current) => {
+        current.forEach((item) => {
+          if (!urls.includes(item.url)) {
+            urls.push(item.url);
+            previous.push(item);
+          }
+        });
+        return previous;
+      }, [])
+      .sort(byUrl);
+  } catch (error) {
+    log(red(error));
+    return null;
+  }
+};
+
+const collectionsFlat = (data) => uniqueURL(Object.values(data));
+
+const breadcrumbs = (nodes, page) => {
+  const normalized = Object.values(nodes).map((node) =>
+    Array.isArray(node) ? node : [node]
+  );
+  const pages = uniqueURL(normalized);
+  const crumbs = [];
+  let searchFor = page;
+  while (true) {
+    for (let i = 0; i < pages.length; i++) {
+      const page = pages[i];
+      if (page.url === searchFor) {
+        crumbs.push(page.url);
+        console.log(`FOUND ${page.url}`);
+        searchFor =
+          (page.data && page.data.blog && page.data.blog.parent) ||
+          (page.url !== "/" ? "/" : "");
+        if (searchFor !== "") {
+          i = -1;
+          continue;
+        }
+      }
+    }
+    break;
+  }
+  return crumbs;
+};
 
 module.exports = {
   generatePaginatedBlog,
@@ -274,35 +388,56 @@ module.exports = {
   initArguments: {},
   configFunction: function (
     eleventyConfig,
-    { input, itemsPerPage, extensions, blogPaths, blogPostTemplate } = {}
+    {
+      input,
+      itemsPerPage,
+      extensions,
+      blogPaths,
+      blogPostTemplate,
+      allPaths,
+      defaultCategory
+    } = {}
   ) {
     const OPTIONS = {
       content: input || DEFAULT_CONTENT,
       extensions: extensions || ELEVENTY_TEMPLATES,
       itemsPerPage: itemsPerPage || DEFAULT_ITEMS_PER_PAGE,
       blogPostTemplate,
+      defaultCategory
     };
 
-    OPTIONS.blog =
-      blogPaths ||
-      OPTIONS.extensions.map(
-        (extension) => `${OPTIONS.content}/*.${extension}`
-      );
+    OPTIONS.blog = blogPaths || [
+      ...OPTIONS.extensions.map(
+        (extension) => `${OPTIONS.content}/blog/**/*.${extension}`
+      ),
+    ];
+
+    OPTIONS.all = allPaths || [
+      ...OPTIONS.extensions.map(
+        (extension) => `${OPTIONS.content}/**/*.${extension}`
+      ),
+    ];
+
+    module.exports.OPTIONS = OPTIONS;
 
     eleventyConfig.addCollection("blog_flat", (collection) =>
-      collection.getFilteredByGlob(OPTIONS.blog).reverse()
+      collection.getFilteredByGlob(OPTIONS.blog).reverse().filter(exceptDraft)
     );
-    eleventyConfig.addCollection("all", (collection) =>
-      collection.getFilteredByGlob(OPTIONS.content).reverse()
-    );
-    generateBooleanCollection(eleventyConfig, "pages", "page", OPTIONS);
+    generateBooleanCollection(eleventyConfig, "pages", "staticPage", OPTIONS);
     generatePaginatedBlog(eleventyConfig, OPTIONS);
     generateTaxonomy(eleventyConfig, "tags", "tag", OPTIONS);
-    generateTaxonomy(eleventyConfig, "categories", "category", OPTIONS);
+    generateTaxonomy(eleventyConfig, "categories", "category", {
+      ...OPTIONS,
+      defaultValue: "blog",
+    });
     generateCalendar(eleventyConfig, OPTIONS);
+    eleventyConfig.addFilter("collections_flat", collectionsFlat);
     eleventyConfig.addFilter("blog_top", top);
     eleventyConfig.addFilter("blog_slug", strToSlug);
     eleventyConfig.addFilter("blog_dateformat", dateformat);
     eleventyConfig.addFilter("blog_first", first);
+    eleventyConfig.addFilter("blog_breadcrumbs", breadcrumbs);
+    eleventyConfig.addFilter("keys", (input) => input && Object.keys(input));
+    eleventyConfig.addFilter("field", (data, field) => data && data[field]);
   },
 };

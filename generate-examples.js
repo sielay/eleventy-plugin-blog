@@ -4,7 +4,7 @@ const cli = require("cli");
 const path = require("path");
 const mkdirp = require("mkdirp");
 
-const CATEGORIES = ["latest", "thoughts", "essay", "whatever"];
+const CATEGORIES = ["latest", "thoughts", "essay", "whatever", undefined];
 
 const TAGS = [
   "Advertising",
@@ -181,13 +181,21 @@ const generate = (output, daysBack) => {
   const date = new Date(Date.now() - 1000 * 60 * 60 * 24 * daysBack)
     .toISOString()
     .substr(0, 10);
-  const filename = path.join(output, `${date}-example.md`);
+  const filename = path.join(output, `blog/${date}-example.md`);
+  const category = random(CATEGORIES, 1)[0];
   const content = `---
 title: Example blog post for ${date}
 tags:
-${random(TAGS, 5).map((tag) => `    - ${tag}`).join('\n')}
-categories:
-${random(CATEGORIES, 1).map((category) => `    - ${category}`).join('\n')}
+${random(TAGS, 5)
+  .map((tag) => `    - ${tag}`)
+  .join("\n")}
+${
+  category
+    ? `categories:
+  - ${category}
+`
+    : ""
+}
 created: ${date}
 ---
 Lorem ipsum`;
