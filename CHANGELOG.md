@@ -2,6 +2,9 @@
 
 ## 0.2.0
 
+ * `draft` field in front matter to ignore drafts in indexes
+ * `defaultValue` available in taxonomies
+ * BREAKING CHANGE fixed/changed structures for calendar
  * BREAKING CHANGE convention of placing blog posts in `/blog/`
  * BREAKING CHAGNE change field for pages to `staticPage` to avoid clashes
  * BREAKING CHANGE go back to use native `all` collection

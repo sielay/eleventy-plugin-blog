@@ -2,6 +2,9 @@
 
 Zero config blog features for 11ty
 
+This plugin still requires a bit of love in terms of documentation. See my personal
+[blog code](https://github.com/Sielay/sielay.com) to see all examples of use.
+
 ## Features
 
 - Tags, Categories and API to create new taxonomies (paginated)
@@ -42,10 +45,12 @@ This will produce following collections:
 
  - `blog` all posts, paginated
  - `blog_flat` all posts, flat
- - `all` all pages
+ - `all` all pages (using native 11ty)
  - `pages` all pages with frontmatter `page: true`
- - `tags` posts grouped by tags, paginated
- - `categories` posts grouped by categories, paginated
+ - `tag` posts grouped by tags, paginated
+ - `category` posts grouped by categories, paginated
+ - `category_list` list of all categories
+ - `tag_list` list of all tags
  - `calendar` posts grouped by year or year and month, paginated
 
 See [example zero config](./examples/zero-config) for all templates.
