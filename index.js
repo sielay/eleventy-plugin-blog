@@ -303,13 +303,19 @@ function generateBooleanCollection(
   field,
   OPTIONS
 ) {
-  const { all } = OPTIONS || module.exports.OPTIONS;
+  const { all, layout } = OPTIONS || module.exports.OPTIONS;
   testGlobs(all);
   eleventyConfig.addCollection(collectionName, (collection) =>
     collection
       .getFilteredByGlob(all)
       .reverse()
       .filter(exceptDraft)
+      .map(post => {
+        if (layout) {
+          post.data.layout = layout;
+        }
+        return post;
+      })
       .filter(({ data: { [field]: value } }) => value)
   );
 }
