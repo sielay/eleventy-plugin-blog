@@ -310,13 +310,14 @@ function generateBooleanCollection(
       .getFilteredByGlob(all)
       .reverse()
       .filter(exceptDraft)
+      .filter(({ data: { [field]: value } }) => value)
       .map(post => {
         if (layout) {
           post.data.layout = layout;
         }
         return post;
       })
-      .filter(({ data: { [field]: value } }) => value)
+
   );
 }
 
