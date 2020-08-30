@@ -131,6 +131,7 @@ function paginate({
     paged.push({
       title,
       slug: pagesSlugs[index],
+      origSlug: slug,
       pagenumber: index,
       count: pages.length,
       url: pagesSlugs[index],
