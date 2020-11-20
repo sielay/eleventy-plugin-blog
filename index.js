@@ -23,6 +23,7 @@ const ELEVENTY_TEMPLATES = [
 
 const DEFAULT_ITEMS_PER_PAGE = 10;
 const DEFAULT_CONTENT = ".";
+const DEFAULT_BLOG_SLUG = "blog";
 
 const log = (...args) => console.log(...args);
 
@@ -130,6 +131,7 @@ function paginate({
     paged.push({
       title,
       slug: pagesSlugs[index],
+      origSlug: slug,
       pagenumber: index,
       count: pages.length,
       url: pagesSlugs[index],
@@ -186,7 +188,7 @@ function generateTaxonomy(eleventyConfig, field, taxonomy, OPTIONS) {
         field,
         defaultValue
       ),
-      `/blog/${taxonomy}`,
+      `/${OPTIONS.blogSlug}/${taxonomy}`,
       itemsPerPage
     );
     return paginated;
@@ -199,7 +201,7 @@ function generateTaxonomy(eleventyConfig, field, taxonomy, OPTIONS) {
       ),
       title: taxonomy,
       slug: taxonomy,
-      prefix: "/blog",
+      prefix: `/${OPTIONS.blogSlug}`,
       itemsPerPage,
     });
     return paginated;
@@ -214,7 +216,7 @@ function generatePaginatedBlog(eleventyConfig, OPTIONS) {
     paginate({
       itemsPerPage,
       title: "Blog",
-      slug: "blog",
+      slug: OPTIONS.blogSlug,
       prefix: "",
       pages: collection
         .getFilteredByGlob(blog)
@@ -292,7 +294,7 @@ function generateCalendar(eleventyConfig, OPTIONS) {
       return previous;
     }, {});
 
-    return paginateTaxonomy(Object.values(calendar), `/blog`, itemsPerPage);
+    return paginateTaxonomy(Object.values(calendar), `/${OPTIONS.blogSlug}`, itemsPerPage);
   });
 }
 
@@ -302,7 +304,7 @@ function generateBooleanCollection(
   field,
   OPTIONS
 ) {
-  const { all } = OPTIONS || module.exports.OPTIONS;
+  const { all, layout } = OPTIONS || module.exports.OPTIONS;
   testGlobs(all);
   eleventyConfig.addCollection(collectionName, (collection) =>
     collection
@@ -310,6 +312,13 @@ function generateBooleanCollection(
       .reverse()
       .filter(exceptDraft)
       .filter(({ data: { [field]: value } }) => value)
+      .map(post => {
+        if (layout) {
+          post.data.layout = layout;
+        }
+        return post;
+      })
+
   );
 }
 
@@ -386,6 +395,14 @@ module.exports = {
   top,
   dateformat,
   initArguments: {},
+  defaultConfig: {
+    content: DEFAULT_CONTENT,
+    extensions: ELEVENTY_TEMPLATES,
+    blog: ELEVENTY_TEMPLATES.map((extension) => `${DEFAULT_CONTENT}/**/*.${extension}`),
+    all: ELEVENTY_TEMPLATES.map((extension) => `${DEFAULT_CONTENT}/**/*.${extension}`),    
+    itemsPerPage: DEFAULT_ITEMS_PER_PAGE,
+    blogSlug: DEFAULT_BLOG_SLUG
+  },
   configFunction: function (
     eleventyConfig,
     {
@@ -395,7 +412,8 @@ module.exports = {
       blogPaths,
       blogPostTemplate,
       allPaths,
-      defaultCategory
+      defaultCategory,
+      blogSlug
     } = {}
   ) {
     const OPTIONS = {
@@ -403,7 +421,8 @@ module.exports = {
       extensions: extensions || ELEVENTY_TEMPLATES,
       itemsPerPage: itemsPerPage || DEFAULT_ITEMS_PER_PAGE,
       blogPostTemplate,
-      defaultCategory
+      defaultCategory,
+      blogSlug: blogSlug || DEFAULT_BLOG_SLUG
     };
 
     OPTIONS.blog = blogPaths || [
