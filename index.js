@@ -162,7 +162,7 @@ function paginateTaxonomy(list, prefix, itemsPerPage) {
         prefix,
         itemsPerPage,
         children,
-        meta
+        meta,
       })
     )
   );
@@ -212,36 +212,39 @@ function generatePaginatedBlog(eleventyConfig, OPTIONS) {
   const { blog, itemsPerPage, blogPostTemplate, sortBlog } =
     OPTIONS || module.exports.OPTIONS;
   testGlobs(blog);
-  let pages = collection
-    .getFilteredByGlob(blog)
-    .reverse()
-    .filter(exceptDraft)
-    .map((post, index, array) => {
-      if (blogPostTemplate) {
-        post.data.layout = blogPostTemplate;
-      }
-      post.data.categories = post.data.categories || [OPTIONS.defaultCategory || 'blog'];
-      post.data.blog = {
-        parent: getDateFromPage(post).replace("-", "/").substr(0, 7),
-      };
-      post.data.siblings = {
-        previous: array[index - 1],
-        next: array[index + 1],
-      };
-      return post;
-    });
-  if (sortBlog) {
-    pages = pages.sort(sortBlog);
-  }
-  eleventyConfig.addCollection("blog", (collection) =>
-    paginate({
+
+  eleventyConfig.addCollection("blog", (collection) => {
+    let pages = collection
+      .getFilteredByGlob(blog)
+      .reverse()
+      .filter(exceptDraft)
+      .map((post, index, array) => {
+        if (blogPostTemplate) {
+          post.data.layout = blogPostTemplate;
+        }
+        post.data.categories = post.data.categories || [
+          OPTIONS.defaultCategory || "blog",
+        ];
+        post.data.blog = {
+          parent: getDateFromPage(post).replace("-", "/").substr(0, 7),
+        };
+        post.data.siblings = {
+          previous: array[index - 1],
+          next: array[index + 1],
+        };
+        return post;
+      });
+    if (sortBlog) {
+      pages = pages.sort(sortBlog);
+    }
+    return paginate({
       itemsPerPage,
       title: "Blog",
       slug: OPTIONS.blogSlug,
       prefix: "",
-      pages
-    })
-  );
+      pages,
+    });
+  });
 }
 
 function getDateFromPage(page) {
@@ -298,7 +301,11 @@ function generateCalendar(eleventyConfig, OPTIONS) {
       return previous;
     }, {});
 
-    return paginateTaxonomy(Object.values(calendar), `/${OPTIONS.blogSlug}`, itemsPerPage);
+    return paginateTaxonomy(
+      Object.values(calendar),
+      `/${OPTIONS.blogSlug}`,
+      itemsPerPage
+    );
   });
 }
 
@@ -316,27 +323,27 @@ function generateBooleanCollection(
       .reverse()
       .filter(exceptDraft)
       .filter(({ data: { [field]: value } }) => value)
-      .map(post => {
+      .map((post) => {
         if (layout) {
           post.data.layout = layout;
         }
         return post;
       })
-
   );
 }
 
-const top = (data, limit) =>
-  data && data.items && data.items.slice(0, limit);
+const top = (data, limit) => data && data.items && data.items.slice(0, limit);
 
 const dateformat = (date, format) => moment(date).format(format);
 
 const first = (data) => data.filter(({ pagenumber }) => +pagenumber === 0);
 
-const byField = (field) => ({ [field]: A }, { [field]: B }) => {
-  if (A === B) return 0;
-  return A < B ? -1 : 1;
-};
+const byField =
+  (field) =>
+  ({ [field]: A }, { [field]: B }) => {
+    if (A === B) return 0;
+    return A < B ? -1 : 1;
+  };
 
 const byUrl = byField("url");
 
@@ -402,10 +409,14 @@ module.exports = {
   defaultConfig: {
     content: DEFAULT_CONTENT,
     extensions: ELEVENTY_TEMPLATES,
-    blog: ELEVENTY_TEMPLATES.map((extension) => `${DEFAULT_CONTENT}/**/*.${extension}`),
-    all: ELEVENTY_TEMPLATES.map((extension) => `${DEFAULT_CONTENT}/**/*.${extension}`),    
+    blog: ELEVENTY_TEMPLATES.map(
+      (extension) => `${DEFAULT_CONTENT}/**/*.${extension}`
+    ),
+    all: ELEVENTY_TEMPLATES.map(
+      (extension) => `${DEFAULT_CONTENT}/**/*.${extension}`
+    ),
     itemsPerPage: DEFAULT_ITEMS_PER_PAGE,
-    blogSlug: DEFAULT_BLOG_SLUG
+    blogSlug: DEFAULT_BLOG_SLUG,
   },
   configFunction: function (
     eleventyConfig,
@@ -417,7 +428,7 @@ module.exports = {
       blogPostTemplate,
       allPaths,
       defaultCategory,
-      blogSlug
+      blogSlug,
     } = {}
   ) {
     const OPTIONS = {
@@ -426,7 +437,7 @@ module.exports = {
       itemsPerPage: itemsPerPage || DEFAULT_ITEMS_PER_PAGE,
       blogPostTemplate,
       defaultCategory,
-      blogSlug: blogSlug || DEFAULT_BLOG_SLUG
+      blogSlug: blogSlug || DEFAULT_BLOG_SLUG,
     };
 
     OPTIONS.blog = blogPaths || [
