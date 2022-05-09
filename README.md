@@ -87,6 +87,7 @@ prefix       | String              | Slug prefix
 title        | String              | Given title
 meta         | Object \| Undefiend | Additional data to bound to each index page (see [generateCalendar](#generateCalendar)
 itemsPerPage | Number              | Number of 11ty pages on each index page
+sortBlog     | Function \| Undefined
 
 Slugs will be generated as follows:
  

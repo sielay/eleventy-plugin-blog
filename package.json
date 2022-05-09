@@ -1,10 +1,16 @@
 {
   "name": "eleventy-plugin-blog",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "description": "Zero configuration blog featyres for 11ty",
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "engines": {
+    "node": ">=10"
+  },
+  "bin": {
+    "eleventy": "./cmd.js"
   },
   "repository": {
     "type": "git",
@@ -29,9 +35,11 @@
     "mkdirp": "^1.0.4"
   },
   "dependencies": {
+    "@11ty/eleventy": "^0.11.1",
     "chalk": "^4.0.0",
     "lodash": "^4.17.15",
     "moment": "^2.26.0",
+    "please-upgrade-node": "^3.2.0",
     "slugify": "^1.4.0"
   }
 }

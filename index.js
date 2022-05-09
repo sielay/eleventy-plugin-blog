@@ -209,33 +209,37 @@ function generateTaxonomy(eleventyConfig, field, taxonomy, OPTIONS) {
 }
 
 function generatePaginatedBlog(eleventyConfig, OPTIONS) {
-  const { blog, itemsPerPage, blogPostTemplate } =
+  const { blog, itemsPerPage, blogPostTemplate, sortBlog } =
     OPTIONS || module.exports.OPTIONS;
   testGlobs(blog);
+  let pages = collection
+    .getFilteredByGlob(blog)
+    .reverse()
+    .filter(exceptDraft)
+    .map((post, index, array) => {
+      if (blogPostTemplate) {
+        post.data.layout = blogPostTemplate;
+      }
+      post.data.categories = post.data.categories || [OPTIONS.defaultCategory || 'blog'];
+      post.data.blog = {
+        parent: getDateFromPage(post).replace("-", "/").substr(0, 7),
+      };
+      post.data.siblings = {
+        previous: array[index - 1],
+        next: array[index + 1],
+      };
+      return post;
+    });
+  if (sortBlog) {
+    pages = pages.sort(sortBlog);
+  }
   eleventyConfig.addCollection("blog", (collection) =>
     paginate({
       itemsPerPage,
       title: "Blog",
       slug: OPTIONS.blogSlug,
       prefix: "",
-      pages: collection
-        .getFilteredByGlob(blog)
-        .reverse()
-        .filter(exceptDraft)
-        .map((post, index, array) => {
-          if (blogPostTemplate) {
-            post.data.layout = blogPostTemplate;
-          }
-          post.data.categories = post.data.categories || [OPTIONS.defaultCategory || 'blog'];
-          post.data.blog = {
-            parent: getDateFromPage(post).replace("-", "/").substr(0, 7),
-          };
-          post.data.siblings = {
-            previous: array[index - 1],
-            next: array[index + 1],
-          };
-          return post;
-        }),
+      pages
     })
   );
 }
